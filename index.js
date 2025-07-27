@@ -83,39 +83,39 @@ async function run() {
         // get user by role and all users
         app.get('/users', async (req, res) => {
             try {
-              const role = req.query.role;
-              const page = parseInt(req.query.page) || 1;
-              const limit = parseInt(req.query.limit) || 10;
-              const skip = (page - 1) * limit;
-          
-              let query = {};
-              if (role) {
-                query = { role: role.toLowerCase() };
-              }
-          
-              // Total count of users matching query
-              const total = await usersCollection.countDocuments(query);
-          
-              // Fetch paginated users
-              const users = await usersCollection
-                .find(query)
-                .skip(skip)
-                .limit(limit)
-                .toArray();
-          
-              res.status(200).send({
-                users,            // The current page of users
-                total,            // 🔁 Renamed from 'count' to 'total'
-                totalPages: Math.ceil(total / limit), // Optional for frontend UI
-                currentPage: page                      // Optional, but nice to have
-              });
-          
+                const role = req.query.role;
+                const page = parseInt(req.query.page) || 1;
+                const limit = parseInt(req.query.limit) || 10;
+                const skip = (page - 1) * limit;
+
+                let query = {};
+                if (role) {
+                    query = { role: role.toLowerCase() };
+                }
+
+                // Total count of users matching query
+                const total = await usersCollection.countDocuments(query);
+
+                // Fetch paginated users
+                const users = await usersCollection
+                    .find(query)
+                    .skip(skip)
+                    .limit(limit)
+                    .toArray();
+
+                res.status(200).send({
+                    users,            // The current page of users
+                    total,            // 🔁 Renamed from 'count' to 'total'
+                    totalPages: Math.ceil(total / limit), // Optional for frontend UI
+                    currentPage: page                      // Optional, but nice to have
+                });
+
             } catch (error) {
-              console.error('❌ Error fetching paginated users:', error.message);
-              res.status(500).send({ message: 'Server error', error: error.message });
+                console.error('❌ Error fetching paginated users:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
             }
-          });
-          
+        });
+
 
         // update user role
 
@@ -139,7 +139,7 @@ async function run() {
                     return res.status(404).send({ message: 'User not found or role is unchanged' });
                 }
 
-                res.status(200).send({ message: 'User role updated successfully',modifiedCount: result.modifiedCount } );
+                res.status(200).send({ message: 'User role updated successfully', modifiedCount: result.modifiedCount });
 
             } catch (error) {
                 console.error('❌ Error updating user role:', error.message);
@@ -153,6 +153,16 @@ async function run() {
 
 
         // Publisher apis
+        app.get('/publishers', async (req, res) => {
+            try {
+                const publishers = await publishersCollection.find().toArray();
+                res.status(200).send(publishers);
+            } catch (error) {
+                console.error('❌ Error fetching publishers:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
 
         app.post('/publishers', async (req, res) => {
             try {
