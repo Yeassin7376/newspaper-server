@@ -56,25 +56,22 @@ async function run() {
                 const existingUser = await usersCollection.findOne(query);
 
                 if (existingUser) {
-                    const lastLogin = new Date();
-                    await usersCollection.updateOne(query, { $set: { lastLogin } });
+                    const last_login = new Date();
+                    await usersCollection.updateOne(query, { $set: { last_login } });
 
                     return res.status(200).send({
                         message: 'User already exists — login time updated',
                         inserted: false,
-                        lastLogin
+                        last_login
                     });
                 }
-
-                user.createdAt = new Date();
-                user.lastLogin = new Date();
 
                 const result = await usersCollection.insertOne(user);
                 res.status(201).send({
                     message: 'User added successfully',
                     inserted: true,
                     insertedId: result.insertedId,
-                    lastLogin: user.lastLogin
+                    last_login: user.last_login
                 });
 
             } catch (error) {
@@ -82,6 +79,43 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
+
+        // get user by role and all users
+        app.get('/users', async (req, res) => {
+            try {
+                const role = req.query.role;
+                const page = parseInt(req.query.page) || 1;
+                const limit = parseInt(req.query.limit) || 10;
+
+                const skip = (page - 1) * limit;
+
+                let query = {};
+                if (role) {
+                    query = { role: role.toLowerCase() };
+                }
+
+                const total = await usersCollection.countDocuments(query);
+                const users = await usersCollection
+                    .find(query)
+                    .skip(skip)
+                    .limit(limit)
+                    .toArray();
+
+                res.status(200).send({
+                    users,
+                    count: total,
+                    totalPages: Math.ceil(total / limit),
+                    currentPage: page
+                });
+
+            } catch (error) {
+                console.error('❌ Error fetching paginated users:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
+
+
 
 
         // Publisher apis
@@ -107,7 +141,7 @@ async function run() {
                     displayName: name, // for showing the real one
                     ...rest,
                     createdAt: new Date(),
-                  };
+                };
 
                 const result = await publishersCollection.insertOne(publisher);
 
