@@ -197,6 +197,30 @@ async function run() {
         });
 
         // Articles APIs
+        app.get('/articles', async (req, res) => {
+            try {
+                const page = parseInt(req.query.page) || 1; // Default page = 1
+                const limit = parseInt(req.query.limit) || 10; // Default limit = 10
+                const skip = (page - 1) * limit;
+
+                const cursor = articlesCollection.find().skip(skip).limit(limit);
+
+                const total = await articlesCollection.estimatedDocumentCount();
+                const articles = await cursor.toArray();
+
+                res.status(200).send({
+                    page,
+                    limit,
+                    totalPages: Math.ceil(total / limit),
+                    totalArticles: total,
+                    articles
+                });
+            } catch (error) {
+                console.error('❌ Error fetching paginated articles:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
 
         app.post('/articles', async (req, res) => {
             try {
