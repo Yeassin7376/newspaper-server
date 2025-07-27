@@ -40,6 +40,10 @@ async function run() {
         const articlesCollection = db.collection("articles");
         const publishersCollection = db.collection("publishers");
 
+        // ✅ Create unique index on publisher name
+        await publishersCollection.createIndex({ name: 1 }, { unique: true });
+
+
 
 
         // User apis
@@ -82,6 +86,42 @@ async function run() {
 
         // Publisher apis
 
+        app.post('/publishers', async (req, res) => {
+            try {
+                let { name, ...rest } = req.body;
+
+                if (!name) {
+                    return res.status(400).send({ message: 'Publisher name is required' });
+                }
+
+                const cleanName = name.trim().toLowerCase();
+
+                const existing = await publishersCollection.findOne({ name: cleanName });
+
+                if (existing) {
+                    return res.status(200).send({ message: 'Publisher already exists', inserted: false });
+                }
+
+                const publisher = {
+                    name: cleanName, // for matching and uniqueness
+                    displayName: name, // for showing the real one
+                    ...rest,
+                    createdAt: new Date(),
+                  };
+
+                const result = await publishersCollection.insertOne(publisher);
+
+                res.status(201).send({
+                    message: 'Publisher added successfully',
+                    inserted: true,
+                    insertedId: result.insertedId
+                });
+
+            } catch (error) {
+                console.error('❌ Error adding publisher:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
 
 
 
