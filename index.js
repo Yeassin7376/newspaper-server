@@ -289,6 +289,44 @@ async function run() {
             }
         });
 
+        app.patch('/articles/premium/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const {isPremium} = req.body;
+
+                const result = await articlesCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { isPremium: isPremium, updatedAt: new Date() } }
+                );
+
+                res.send({ message: `Article marked as ${isPremium ? 'Premium' : 'Standard'}`, result });
+            } catch (error) {
+                console.error('❌ Error updating premium status:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
+
+        app.delete('/articles/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+
+                const result = await articlesCollection.deleteOne({ _id: new ObjectId(id) });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({ message: 'Article not found' });
+                }
+
+                res.send({ message: 'Article deleted successfully', result });
+            } catch (error) {
+                console.error('❌ Error deleting article:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
+
+
+
 
 
 
