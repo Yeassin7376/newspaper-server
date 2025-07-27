@@ -148,10 +148,6 @@ async function run() {
         });
 
 
-
-
-
-
         // Publisher apis
         app.get('/publishers', async (req, res) => {
             try {
@@ -162,7 +158,6 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
-
 
         app.post('/publishers', async (req, res) => {
             try {
@@ -200,6 +195,35 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
+
+        // Articles APIs
+
+        app.post('/articles', async (req, res) => {
+            try {
+                const article = req.body;
+
+                // Basic validation (add more fields as needed)
+                if (!article.title || !article.description || !article.authorEmail) {
+                    return res.status(400).send({ message: 'Title, content, and authorEmail are required' });
+                }
+
+                article.title = article.title.trim();
+                article.description = article.description.trim();
+                article.authorEmail = article.authorEmail.toLowerCase().trim();
+
+                const result = await articlesCollection.insertOne(article);
+
+                res.status(201).send({
+                    message: 'Article created successfully',
+                    inserted: true,
+                    insertedId: result.insertedId
+                });
+            } catch (error) {
+                console.error('❌ Error saving article:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
 
 
 
