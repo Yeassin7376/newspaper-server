@@ -5,7 +5,7 @@ const dotenv = require('dotenv');
 
 // Load environment variables from .env
 dotenv.config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -83,36 +83,70 @@ async function run() {
         // get user by role and all users
         app.get('/users', async (req, res) => {
             try {
-                const role = req.query.role;
-                const page = parseInt(req.query.page) || 1;
-                const limit = parseInt(req.query.limit) || 10;
+              const role = req.query.role;
+              const page = parseInt(req.query.page) || 1;
+              const limit = parseInt(req.query.limit) || 10;
+              const skip = (page - 1) * limit;
+          
+              let query = {};
+              if (role) {
+                query = { role: role.toLowerCase() };
+              }
+          
+              // Total count of users matching query
+              const total = await usersCollection.countDocuments(query);
+          
+              // Fetch paginated users
+              const users = await usersCollection
+                .find(query)
+                .skip(skip)
+                .limit(limit)
+                .toArray();
+          
+              res.status(200).send({
+                users,            // The current page of users
+                total,            // 🔁 Renamed from 'count' to 'total'
+                totalPages: Math.ceil(total / limit), // Optional for frontend UI
+                currentPage: page                      // Optional, but nice to have
+              });
+          
+            } catch (error) {
+              console.error('❌ Error fetching paginated users:', error.message);
+              res.status(500).send({ message: 'Server error', error: error.message });
+            }
+          });
+          
 
-                const skip = (page - 1) * limit;
+        // update user role
 
-                let query = {};
-                if (role) {
-                    query = { role: role.toLowerCase() };
+        app.patch('/users/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const newRole = req.body.role;
+
+                if (!newRole) {
+                    return res.status(400).send({ message: 'Role is required' });
                 }
 
-                const total = await usersCollection.countDocuments(query);
-                const users = await usersCollection
-                    .find(query)
-                    .skip(skip)
-                    .limit(limit)
-                    .toArray();
+                const filter = { _id: new ObjectId(id) };
+                const update = {
+                    $set: { role: newRole.toLowerCase() }
+                };
 
-                res.status(200).send({
-                    users,
-                    count: total,
-                    totalPages: Math.ceil(total / limit),
-                    currentPage: page
-                });
+                const result = await usersCollection.updateOne(filter, update);
+
+                if (result.modifiedCount === 0) {
+                    return res.status(404).send({ message: 'User not found or role is unchanged' });
+                }
+
+                res.status(200).send({ message: 'User role updated successfully',modifiedCount: result.modifiedCount } );
 
             } catch (error) {
-                console.error('❌ Error fetching paginated users:', error.message);
+                console.error('❌ Error updating user role:', error.message);
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
+
 
 
 
