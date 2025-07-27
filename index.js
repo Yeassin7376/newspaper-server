@@ -248,6 +248,49 @@ async function run() {
             }
         });
 
+        app.patch('/articles/approve/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const result = await articlesCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $set: { status: 'approved', reviewed_at: new Date() } }
+                );
+                res.send({ message: 'Article approved', result });
+            } catch (error) {
+                console.error('❌ Error approving article:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
+        app.patch('/articles/decline/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const { reason } = req.body;
+
+                if (!reason) {
+                    return res.status(400).send({ message: 'Decline reason is required' });
+                }
+
+                const result = await articlesCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    {
+                        $set: {
+                            status: 'declined',
+                            declineReason: reason,
+                            reviewed_at: new Date()
+                        }
+                    }
+                );
+
+                res.send({ message: 'Article declined with reason', result });
+            } catch (error) {
+                console.error('❌ Error declining article:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
+
+
 
 
 
