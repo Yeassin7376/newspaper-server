@@ -246,6 +246,25 @@ async function run() {
             res.send(articles);
         });
 
+        // single article by id
+        app.get('/articles/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+
+                const article = await articlesCollection.findOne({ _id: new ObjectId(id) });
+
+                if (!article) {
+                    return res.status(404).send({ message: 'Article not found' });
+                }
+
+                res.send(article);
+            } catch (error) {
+                console.error('❌ Error fetching article:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
+
 
         app.post('/articles', async (req, res) => {
             try {
@@ -282,7 +301,7 @@ async function run() {
                         $set: {
                             status: 'approved',
                             reviewed_at: new Date(),
-                            views : 0, 
+                            views: 0,
                         }
                     }
                 );
