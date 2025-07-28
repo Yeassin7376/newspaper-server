@@ -216,9 +216,34 @@ async function run() {
                     articles
                 });
             } catch (error) {
-                console.error('❌ Error fetching paginated articles:', error.message);
+                console.error(' Error fetching paginated articles:', error.message);
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
+        });
+
+        // GET /articles/approved
+        app.get('/articles/approved', async (req, res) => {
+            const { search = '', publisher = '', tags = '' } = req.query;
+
+            const query = {
+                status: 'approved'
+            };
+
+            if (search) {
+                query.title = { $regex: search, $options: 'i' };
+            }
+
+            if (publisher) {
+                query.publisher = publisher;
+            }
+
+            if (tags) {
+                const tagArray = tags.split(',');
+                query.tags = { $in: tagArray };
+            }
+
+            const articles = await articlesCollection.find(query).toArray();
+            res.send(articles);
         });
 
 
@@ -243,7 +268,7 @@ async function run() {
                     insertedId: result.insertedId
                 });
             } catch (error) {
-                console.error('❌ Error saving article:', error.message);
+                console.error(' Error saving article:', error.message);
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
@@ -253,11 +278,17 @@ async function run() {
                 const id = req.params.id;
                 const result = await articlesCollection.updateOne(
                     { _id: new ObjectId(id) },
-                    { $set: { status: 'approved', reviewed_at: new Date() } }
+                    {
+                        $set: {
+                            status: 'approved',
+                            reviewed_at: new Date(),
+                            views : 0, 
+                        }
+                    }
                 );
                 res.send({ message: 'Article approved', result });
             } catch (error) {
-                console.error('❌ Error approving article:', error.message);
+                console.error(' Error approving article:', error.message);
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
@@ -284,7 +315,7 @@ async function run() {
 
                 res.send({ message: 'Article declined with reason', result });
             } catch (error) {
-                console.error('❌ Error declining article:', error.message);
+                console.error(' Error declining article:', error.message);
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
@@ -292,7 +323,7 @@ async function run() {
         app.patch('/articles/premium/:id', async (req, res) => {
             try {
                 const id = req.params.id;
-                const {isPremium} = req.body;
+                const { isPremium } = req.body;
 
                 const result = await articlesCollection.updateOne(
                     { _id: new ObjectId(id) },
@@ -301,7 +332,7 @@ async function run() {
 
                 res.send({ message: `Article marked as ${isPremium ? 'Premium' : 'Standard'}`, result });
             } catch (error) {
-                console.error('❌ Error updating premium status:', error.message);
+                console.error(' Error updating premium status:', error.message);
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
