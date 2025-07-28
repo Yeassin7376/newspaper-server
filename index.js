@@ -256,10 +256,33 @@ async function run() {
                 if (!article) {
                     return res.status(404).send({ message: 'Article not found' });
                 }
+                const publisher = await publishersCollection.findOne({ name: article.publisher });
+
+                article.publisherLogo = publisher.logoUrl;
 
                 res.send(article);
             } catch (error) {
                 console.error('❌ Error fetching article:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
+        app.patch('/articles/views/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+
+                const result = await articlesCollection.updateOne(
+                    { _id: new ObjectId(id) },
+                    { $inc: { views: 1 } }
+                );
+
+                if (result.modifiedCount === 0) {
+                    return res.status(404).send({ message: 'Article not found or view not updated' });
+                }
+
+                res.send({ message: 'View count incremented', result });
+            } catch (error) {
+                console.error('❌ Error updating views:', error.message);
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
@@ -346,7 +369,7 @@ async function run() {
 
                 const result = await articlesCollection.updateOne(
                     { _id: new ObjectId(id) },
-                    { $set: { isPremium: isPremium, updatedAt: new Date() } }
+                    { $set: { isPremium: isPremium } }
                 );
 
                 res.send({ message: `Article marked as ${isPremium ? 'Premium' : 'Standard'}`, result });
@@ -373,12 +396,6 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
-
-
-
-
-
-
 
 
 
