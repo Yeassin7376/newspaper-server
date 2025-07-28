@@ -140,7 +140,6 @@ async function run() {
 
 
         // update user role
-
         app.patch('/users/:id', async (req, res) => {
             try {
                 const id = req.params.id;
@@ -268,6 +267,23 @@ async function run() {
             res.send(articles);
         });
 
+        app.get('/articles/trending', async (req, res) => {
+            try {
+              const limit = parseInt(req.query.limit) || 6;
+          
+              const trendingArticles = await articlesCollection
+                .find({ status: 'approved' })    // Only approved articles
+                .sort({ views: -1 })             // Sort by highest views
+                .limit(limit)
+                .toArray();
+          
+              res.send(trendingArticles);
+            } catch (error) {
+              console.error(' Error fetching trending articles:', error.message);
+              res.status(500).send({ message: 'Server error', error: error.message });
+            }
+          });
+
         // single article by id
         app.get('/articles/:id', async (req, res) => {
             try {
@@ -288,6 +304,9 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
+
+        
+          
 
         app.patch('/articles/views/:id', async (req, res) => {
             try {
