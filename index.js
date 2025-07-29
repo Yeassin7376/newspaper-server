@@ -155,6 +155,40 @@ async function run() {
             }
         });
 
+        app.patch('/users/:email', async (req, res) => {
+            try {
+              const email = req.params.email.toLowerCase().trim();
+              const { name, photoURL } = req.body;
+          
+              if (!name && !photoURL) {
+                return res.status(400).send({ message: 'Nothing to update' });
+              }
+          
+              const filter = { email };
+              const updateFields = {};
+          
+              if (name) updateFields.name = name.trim();
+              if (photoURL) updateFields.photoURL = photoURL.trim();
+          
+              const updateDoc = {
+                $set: {
+                  ...updateFields,
+                  updated_at: new Date()
+                }
+              };
+          
+              const result = await usersCollection.updateOne(filter, updateDoc);
+          
+              if (result.matchedCount === 0) {
+                return res.status(404).send({ message: 'User not found' });
+              }
+          
+              res.send({ message: 'User profile updated successfully', modifiedCount: result.modifiedCount });
+            } catch (error) {
+              res.status(500).send({ message: 'Server error', error: error.message });
+            }
+          });
+          
 
         // update user role
         app.patch('/users/:id', async (req, res) => {
@@ -184,7 +218,6 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
-
 
         // Publisher apis
         app.get('/publishers', async (req, res) => {
