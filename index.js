@@ -138,6 +138,25 @@ async function run() {
             }
         });
 
+        app.get('/users/stats', async (req, res) => {
+            try {
+              const total = await usersCollection.estimatedDocumentCount();
+          
+              const normalCount = await usersCollection.countDocuments({ role: { $in: [null, 'user'] } });
+              const premiumCount = await usersCollection.countDocuments({ role: 'premium' });
+          
+              res.send({
+                total,
+                normal: normalCount,
+                premium: premiumCount
+              });
+            } catch (error) {
+              console.error('❌ Error fetching user stats:', error.message);
+              res.status(500).send({ message: 'Server error', error: error.message });
+            }
+          });
+          
+
 
         // update user role
         app.patch('/users/:id', async (req, res) => {
