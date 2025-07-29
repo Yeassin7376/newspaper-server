@@ -11,7 +11,9 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: ['http://localhost:5173', 'https://newspaper-b11a12-auth.web.app']
+}));
 app.use(express.json());
 
 
@@ -42,8 +44,6 @@ async function run() {
 
         // ✅ Create unique index on publisher name
         await publishersCollection.createIndex({ name: 1 }, { unique: true });
-
-
 
 
         // User apis
@@ -133,13 +133,14 @@ async function run() {
 
                 // Check if premium expired
                 const now = new Date();
-                if (user.premiumTaken && new Date(user.premiumTaken) < now) {
+
+                if (user.premiumExpiresAt && new Date(user.premiumExpiresAt) < now) {
                     // Reset it
                     await usersCollection.updateOne(
                         { email },
-                        { $set: { premiumTaken: null } }
+                        { $unset: { premiumExpiresAt: "" } }
                     );
-                    user.premiumTaken = null; // Update user object too
+                    user.premiumExpiresAt = null; // Update user object too
                 }
 
                 res.send(user);
@@ -174,8 +175,18 @@ async function run() {
             try {
                 const total = await usersCollection.estimatedDocumentCount();
 
-                const normalCount = await usersCollection.countDocuments({ role: { $in: [null, 'user'] } });
-                const premiumCount = await usersCollection.countDocuments({ role: 'premium' });
+
+                const normalCount = await usersCollection.countDocuments({
+                    role: { $in: [null, 'user'] },
+                    $or: [
+                        { premiumExpiresAt: { $exists: false } },
+                        { premiumExpiresAt: { $lte: new Date() } }
+                    ]
+                });
+
+                const premiumCount = await usersCollection.countDocuments({
+                    premiumExpiresAt: { $gt: new Date() }
+                });
 
                 res.send({
                     total,
@@ -189,17 +200,17 @@ async function run() {
 
         app.patch('/users/premium/:email', async (req, res) => {
             const email = req.params.email;
-            const { premiumTaken } = req.body;
+            const { premiumExpiresAt } = req.body;
 
             try {
                 const result = await usersCollection.updateOne(
                     { email },
-                    { $set: { premiumTaken: premiumTaken } }
+                    { $set: { premiumExpiresAt: new Date(premiumExpiresAt) } }
                 );
 
                 res.send(result);
             } catch (err) {
-                console.error('Error updating premiumTaken:', err);
+                console.error('Error updating premiumExpiresAt:', err);
                 res.status(500).send({ error: 'Failed to update premium status' });
             }
         });
@@ -241,7 +252,7 @@ async function run() {
 
 
         // update user role
-        app.patch('/users/:id', async (req, res) => {
+        app.patch('/user/:id', async (req, res) => {
             try {
                 const id = req.params.id;
                 const newRole = req.body.role;
@@ -358,6 +369,26 @@ async function run() {
                 res.status(500).json({ error: 'Internal Server Error' });
             }
         });
+
+        // get premium articles
+        app.get('/articles/premium', async (req, res) => {
+            try {
+                const query = {
+                    isPremium: true,
+                    status: 'approved'
+                };
+
+                const premiumArticles = await articlesCollection
+                    .find(query)
+                    .sort({ created_at: -1 })
+                    .toArray();
+
+                res.send(premiumArticles);
+            } catch (error) {
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
 
 
         // GET /articles/approved
