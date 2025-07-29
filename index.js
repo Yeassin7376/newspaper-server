@@ -140,22 +140,20 @@ async function run() {
 
         app.get('/users/stats', async (req, res) => {
             try {
-              const total = await usersCollection.estimatedDocumentCount();
-          
-              const normalCount = await usersCollection.countDocuments({ role: { $in: [null, 'user'] } });
-              const premiumCount = await usersCollection.countDocuments({ role: 'premium' });
-          
-              res.send({
-                total,
-                normal: normalCount,
-                premium: premiumCount
-              });
+                const total = await usersCollection.estimatedDocumentCount();
+
+                const normalCount = await usersCollection.countDocuments({ role: { $in: [null, 'user'] } });
+                const premiumCount = await usersCollection.countDocuments({ role: 'premium' });
+
+                res.send({
+                    total,
+                    normal: normalCount,
+                    premium: premiumCount
+                });
             } catch (error) {
-              console.error('❌ Error fetching user stats:', error.message);
-              res.status(500).send({ message: 'Server error', error: error.message });
+                res.status(500).send({ message: 'Server error', error: error.message });
             }
-          });
-          
+        });
 
 
         // update user role
@@ -261,6 +259,24 @@ async function run() {
             }
         });
 
+        // Get all articles created by the logged-in user
+        app.get('/articles/user', async (req, res) => {
+            try {
+                const email = req.query.email;
+
+                const articles = await articlesCollection
+                    .find({ authorEmail: email })
+                    .sort({ created_at: -1 })
+                    .toArray();
+
+                res.json(articles);
+            } catch (error) {
+                console.error('Error fetching user articles:', error);
+                res.status(500).json({ error: 'Internal Server Error' });
+            }
+        });
+
+
         // GET /articles/approved
         app.get('/articles/approved', async (req, res) => {
             const { search = '', publisher = '', tags = '' } = req.query;
@@ -288,20 +304,19 @@ async function run() {
 
         app.get('/articles/trending', async (req, res) => {
             try {
-              const limit = parseInt(req.query.limit) || 6;
-          
-              const trendingArticles = await articlesCollection
-                .find({ status: 'approved' })    // Only approved articles
-                .sort({ views: -1 })             // Sort by highest views
-                .limit(limit)
-                .toArray();
-          
-              res.send(trendingArticles);
+                const limit = parseInt(req.query.limit) || 6;
+
+                const trendingArticles = await articlesCollection
+                    .find({ status: 'approved' })    // Only approved articles
+                    .sort({ views: -1 })             // Sort by highest views
+                    .limit(limit)
+                    .toArray();
+
+                res.send(trendingArticles);
             } catch (error) {
-              console.error(' Error fetching trending articles:', error.message);
-              res.status(500).send({ message: 'Server error', error: error.message });
+                res.status(500).send({ message: 'Server error', error: error.message });
             }
-          });
+        });
 
         // single article by id
         app.get('/articles/:id', async (req, res) => {
@@ -324,8 +339,6 @@ async function run() {
             }
         });
 
-        
-          
 
         app.patch('/articles/views/:id', async (req, res) => {
             try {
@@ -438,6 +451,39 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
+
+
+        app.patch('/articles/:id', async (req, res) => {
+            try {
+                const articleId = req.params.id;
+                const updates = req.body;
+
+                const filter = { _id: new ObjectId(articleId) };
+
+                // Sanitize fields
+                if (updates.title) updates.title = updates.title.trim();
+                if (updates.description) updates.description = updates.description.trim();
+                if (updates.authorEmail) updates.authorEmail = updates.authorEmail.toLowerCase().trim();
+
+                const updateDoc = {
+                    $set: {
+                        ...updates,
+                    }
+                };
+
+                const result = await articlesCollection.updateOne(filter, updateDoc);
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({ message: 'Article not found' });
+                }
+
+                res.send({ message: 'Article updated successfully', matchedCount: result.matchedCount });
+
+            } catch (error) {
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
 
 
         app.delete('/articles/:id', async (req, res) => {
