@@ -1,11 +1,11 @@
-// index.js
+const dotenv = require('dotenv');
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 
 // Load environment variables from .env
 dotenv.config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -80,7 +80,7 @@ async function run() {
             }
         });
 
-        // get user by role and all users
+        // get user by role, email and all users
         app.get('/users', async (req, res) => {
             try {
                 const role = req.query.role;
@@ -113,6 +113,38 @@ async function run() {
             } catch (error) {
                 console.error('❌ Error fetching paginated users:', error.message);
                 res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+
+        // get a user by email
+        app.get('/user', async (req, res) => {
+            try {
+                const email = req.query.email;
+
+                if (!email) {
+                    return res.status(400).send({ error: 'Email is required' });
+                }
+
+                const user = await usersCollection.findOne({ email: email.toLowerCase().trim() });
+
+                if (!user) {
+                    return res.status(404).send({ error: 'User not found' });
+                }
+
+                // Check if premium expired
+                const now = new Date();
+                if (user.premiumTaken && new Date(user.premiumTaken) < now) {
+                    // Reset it
+                    await usersCollection.updateOne(
+                        { email },
+                        { $set: { premiumTaken: null } }
+                    );
+                    user.premiumTaken = null; // Update user object too
+                }
+
+                res.send(user);
+            } catch (error) {
+                res.status(500).send({ error: 'Failed to get user' });
             }
         });
 
@@ -155,40 +187,58 @@ async function run() {
             }
         });
 
+        app.patch('/users/premium/:email', async (req, res) => {
+            const email = req.params.email;
+            const { premiumTaken } = req.body;
+
+            try {
+                const result = await usersCollection.updateOne(
+                    { email },
+                    { $set: { premiumTaken: premiumTaken } }
+                );
+
+                res.send(result);
+            } catch (err) {
+                console.error('Error updating premiumTaken:', err);
+                res.status(500).send({ error: 'Failed to update premium status' });
+            }
+        });
+
+
         app.patch('/users/:email', async (req, res) => {
             try {
-              const email = req.params.email.toLowerCase().trim();
-              const { name, photoURL } = req.body;
-          
-              if (!name && !photoURL) {
-                return res.status(400).send({ message: 'Nothing to update' });
-              }
-          
-              const filter = { email };
-              const updateFields = {};
-          
-              if (name) updateFields.name = name.trim();
-              if (photoURL) updateFields.photoURL = photoURL.trim();
-          
-              const updateDoc = {
-                $set: {
-                  ...updateFields,
-                  updated_at: new Date()
+                const email = req.params.email.toLowerCase().trim();
+                const { name, photoURL } = req.body;
+
+                if (!name && !photoURL) {
+                    return res.status(400).send({ message: 'Nothing to update' });
                 }
-              };
-          
-              const result = await usersCollection.updateOne(filter, updateDoc);
-          
-              if (result.matchedCount === 0) {
-                return res.status(404).send({ message: 'User not found' });
-              }
-          
-              res.send({ message: 'User profile updated successfully', modifiedCount: result.modifiedCount });
+
+                const filter = { email };
+                const updateFields = {};
+
+                if (name) updateFields.name = name.trim();
+                if (photoURL) updateFields.photoURL = photoURL.trim();
+
+                const updateDoc = {
+                    $set: {
+                        ...updateFields,
+                        updated_at: new Date()
+                    }
+                };
+
+                const result = await usersCollection.updateOne(filter, updateDoc);
+
+                if (result.matchedCount === 0) {
+                    return res.status(404).send({ message: 'User not found' });
+                }
+
+                res.send({ message: 'User profile updated successfully', modifiedCount: result.modifiedCount });
             } catch (error) {
-              res.status(500).send({ message: 'Server error', error: error.message });
+                res.status(500).send({ message: 'Server error', error: error.message });
             }
-          });
-          
+        });
+
 
         // update user role
         app.patch('/users/:id', async (req, res) => {
@@ -535,6 +585,30 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
+
+        // routes/payment.js or inside your existing routes
+
+        app.post('/create-payment-intent', async (req, res) => {
+            const { price } = req.body;
+
+            const amount = parseInt(price * 100); // convert to cents
+
+            try {
+                const paymentIntent = await stripe.paymentIntents.create({
+                    amount,
+                    currency: 'usd',
+                    payment_method_types: ['card'],
+                });
+
+                res.send({
+                    clientSecret: paymentIntent.client_secret,
+                });
+            } catch (error) {
+                console.error('Error creating payment intent:', error);
+                res.status(500).send({ error: 'Failed to create payment intent' });
+            }
+        });
+
 
 
 
