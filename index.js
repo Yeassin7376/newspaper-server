@@ -432,6 +432,25 @@ async function run() {
             }
         });
 
+        // ✅ Get Latest Articles
+        app.get('/articles/latest', async (req, res) => {
+            try {
+                const limit = parseInt(req.query.limit) || 6; // default latest 6
+
+                const latestArticles = await articlesCollection
+                    .find({ status: 'approved' })   // only approved ones
+                    .sort({ created_at: -1 })       // newest first
+                    .limit(limit)
+                    .toArray();
+
+                res.status(200).send(latestArticles);
+            } catch (error) {
+                console.error('❌ Error fetching latest articles:', error.message);
+                res.status(500).send({ message: 'Server error', error: error.message });
+            }
+        });
+        // ✅ Get Featured Articles
+
         // single article by id
         app.get('/articles/:id', async (req, res) => {
             try {
@@ -458,6 +477,10 @@ async function run() {
             try {
                 const id = req.params.id;
 
+                if (!ObjectId.isValid(id)) {
+                    return res.status(400).send({ message: 'Invalid article ID' });
+                }
+
                 const result = await articlesCollection.updateOne(
                     { _id: new ObjectId(id) },
                     { $inc: { views: 1 } }
@@ -473,8 +496,6 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
-
-
 
         app.post('/articles', async (req, res) => {
             try {
@@ -598,8 +619,6 @@ async function run() {
             }
         });
 
-
-
         app.delete('/articles/:id', async (req, res) => {
             try {
                 const id = req.params.id;
@@ -617,8 +636,8 @@ async function run() {
             }
         });
 
-        // routes/payment.js or inside your existing routes
 
+        // routes/payment.js or inside your existing routes
         app.post('/create-payment-intent', async (req, res) => {
             const { price } = req.body;
 
