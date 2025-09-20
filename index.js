@@ -41,6 +41,8 @@ async function run() {
         const usersCollection = db.collection("users");
         const articlesCollection = db.collection("articles");
         const publishersCollection = db.collection("publishers");
+        const thematicNewsCollection = db.collection("thematicNews");
+
 
         // ✅ Create unique index on publisher name
         await publishersCollection.createIndex({ name: 1 }, { unique: true });
@@ -390,7 +392,6 @@ async function run() {
         });
 
 
-
         // GET /articles/approved
         app.get('/articles/approved', async (req, res) => {
             const { search = '', publisher = '', tags = '' } = req.query;
@@ -635,6 +636,21 @@ async function run() {
                 res.status(500).send({ message: 'Server error', error: error.message });
             }
         });
+
+        app.get("/thematicNews", async (req, res) => {
+            const articles = await thematicNewsCollection.find().toArray();
+          
+            // Group them by category
+            const grouped = articles.reduce((acc, article) => {
+              if (!acc[article.category]) {
+                acc[article.category] = [];
+              }
+              acc[article.category].push(article);
+              return acc;
+            }, {});
+        //   console.log(grouped)
+            res.json(grouped);
+          });
 
 
         // routes/payment.js or inside your existing routes
