@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-    origin: ['http://localhost:5173', 'https://newspaper-b11a12-auth.web.app']
+    origin: ['http://localhost:5173', 'https://newspaper-b11a12-auth.web.app', 'https://newspaper-client-ten.vercel.app/', 'https://newspaper-client.vercel.app', '*']
 }));
 app.use(express.json());
 
